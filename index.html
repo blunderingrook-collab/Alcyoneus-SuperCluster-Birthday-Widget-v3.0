@@ -11,14 +11,12 @@
             background: black; 
             border: 1px solid white; 
             box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
-            /* Reduced height for square feel */
-            height: 300px; 
+            height: 360px; 
             display: flex;
             flex-direction: column;
         }
         .input-bg { background: #0a0a0a; border: 1px solid #404040; color: white; }
         .input-bg:focus { border-color: white; outline: none; }
-        /* Scrollbar styles */
         #birthday-list::-webkit-scrollbar { width: 4px; }
         #birthday-list::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
         #birthday-list::-webkit-scrollbar-thumb:hover { background: white; }
@@ -27,7 +25,6 @@
 <body class="p-4 min-h-screen flex items-center justify-center">
 
     <div id="birthday-widget" class="widget-container w-full max-w-[280px] p-4 rounded-lg text-white">
-        <!-- Top Section: Fixed -->
         <div class="flex-none">
             <h1 class="text-[10px] font-bold uppercase tracking-widest text-white mb-2 flex items-center gap-2">
                 🎂 B I R T H D A Y S
@@ -43,15 +40,14 @@
                         <option value="9">Oct</option><option value="10">Nov</option><option value="11">Dec</option>
                     </select>
                     <select id="day" class="p-1.5 text-[10px] rounded input-bg outline-none">
-                        <!-- JS fills this -->
+                        <!-- JS filled -->
                     </select>
                 </div>
                 <input id="note" type="text" placeholder="Note (optional)" class="w-full p-1.5 text-[10px] rounded input-bg outline-none">
-                
                 <button onclick="saveBirthday()" class="w-full bg-black hover:bg-white hover:text-black border border-white text-white font-bold py-1 rounded text-[9px] transition-all">
                     SAVE
                 </button>
-                <div id="error-msg" class="text-red-500 text-[8px] hidden">Username already saved!</div>
+                <div id="error-msg" class="text-red-500 text-[8px] hidden">User already saved!</div>
             </div>
 
             <h2 class="text-[8px] font-bold uppercase tracking-widest text-gray-400 mb-1 border-b border-gray-800 pb-0.5">
@@ -59,9 +55,16 @@
             </h2>
         </div>
         
-        <!-- Scrolling Section -->
-        <div id="birthday-list" class="space-y-0.5 overflow-y-auto pr-1 flex-grow">
-            <!-- Items injected here -->
+        <div id="birthday-list" class="space-y-0.5 overflow-y-auto pr-1 flex-grow mb-2">
+            <!-- Items injected -->
+        </div>
+
+        <!-- Delete Section -->
+        <div class="flex gap-1 flex-none border-t border-gray-800 pt-2">
+            <input id="delete-username" type="text" placeholder="Username to delete" class="w-full p-1.5 text-[10px] rounded input-bg outline-none">
+            <button onclick="deleteBirthdayAction()" class="bg-black hover:bg-red-900 border border-white text-white font-bold px-2 rounded text-[9px] transition-all">
+                DELETE
+            </button>
         </div>
     </div>
 
@@ -90,22 +93,30 @@
             if(isDuplicate) {
                 errorDiv.classList.remove('hidden');
                 return;
-            } else {
-                errorDiv.classList.add('hidden');
             }
+            errorDiv.classList.add('hidden');
 
             let avatar = 'https://placehold.co/40x40/000000/white?text=?';
             try {
                 const res = await fetch(`https://api.chess.com/pub/player/${username.toLowerCase()}`);
                 const data = await res.json();
                 if(data.avatar) avatar = data.avatar;
-            } catch(e) { console.error("Avatar fetch failed"); }
+            } catch(e) {}
 
             birthdays.push({ username, month, day, note, avatar });
             localStorage.setItem('birthdays', JSON.stringify(birthdays));
-            
-            usernameInput.value = '';
-            noteInput.value = '';
+            usernameInput.value = ''; noteInput.value = '';
+            renderList();
+        }
+
+        function deleteBirthdayAction() {
+            const delInput = document.getElementById('delete-username');
+            const username = delInput.value.trim();
+            if(!username) return;
+
+            birthdays = birthdays.filter(b => b.username.toLowerCase() !== username.toLowerCase());
+            localStorage.setItem('birthdays', JSON.stringify(birthdays));
+            delInput.value = '';
             renderList();
         }
 
@@ -119,17 +130,13 @@
         function renderList() {
             const container = document.getElementById('birthday-list');
             container.innerHTML = '';
-            
-            const sorted = [...birthdays].sort((a,b) => 
-                calculateDaysUntil(a.month, a.day) - calculateDaysUntil(b.month, b.day)
-            );
+            const sorted = [...birthdays].sort((a,b) => calculateDaysUntil(a.month, a.day) - calculateDaysUntil(b.month, b.day));
 
             sorted.forEach(b => {
                 const days = calculateDaysUntil(b.month, b.day);
                 const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-                
                 const div = document.createElement('div');
-                div.className = "flex items-center p-1 rounded hover:bg-gray-900 transition-all cursor-pointer";
+                div.className = "flex items-center p-1 rounded transition-all";
                 div.innerHTML = `
                     <img src="${b.avatar}" class="w-6 h-6 rounded-full mr-2 border border-gray-600">
                     <div class="overflow-hidden">
@@ -140,7 +147,6 @@
                 container.appendChild(div);
             });
         }
-
         renderList();
     </script>
 </body>
