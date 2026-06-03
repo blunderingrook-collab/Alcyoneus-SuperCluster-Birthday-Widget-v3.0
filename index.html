@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Birthday Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: #050505; font-family: 'Segoe UI', sans-serif; }
+        .widget-container { 
+            background: black; 
+            border: 1px solid white; 
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+            /* Reduced height for square feel */
+            height: 300px; 
+            display: flex;
+            flex-direction: column;
+        }
+        .input-bg { background: #0a0a0a; border: 1px solid #404040; color: white; }
+        .input-bg:focus { border-color: white; outline: none; }
+        /* Scrollbar styles */
+        #birthday-list::-webkit-scrollbar { width: 4px; }
+        #birthday-list::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+        #birthday-list::-webkit-scrollbar-thumb:hover { background: white; }
+    </style>
+</head>
+<body class="p-4 min-h-screen flex items-center justify-center">
+
+    <div id="birthday-widget" class="widget-container w-full max-w-[280px] p-4 rounded-lg text-white">
+        <!-- Top Section: Fixed -->
+        <div class="flex-none">
+            <h1 class="text-[10px] font-bold uppercase tracking-widest text-white mb-2 flex items-center gap-2">
+                🎂 B I R T H D A Y S
+            </h1>
+
+            <div class="space-y-1.5 mb-2">
+                <div class="flex gap-1">
+                    <input id="username" type="text" placeholder="User" class="w-full p-1.5 text-[10px] rounded input-bg outline-none">
+                    <select id="month" class="p-1.5 text-[10px] rounded input-bg outline-none">
+                        <option value="0">Jan</option><option value="1">Feb</option><option value="2">Mar</option>
+                        <option value="3">Apr</option><option value="4">May</option><option value="5">Jun</option>
+                        <option value="6">Jul</option><option value="7">Aug</option><option value="8">Sep</option>
+                        <option value="9">Oct</option><option value="10">Nov</option><option value="11">Dec</option>
+                    </select>
+                    <select id="day" class="p-1.5 text-[10px] rounded input-bg outline-none">
+                        <!-- JS fills this -->
+                    </select>
+                </div>
+                <input id="note" type="text" placeholder="Note (optional)" class="w-full p-1.5 text-[10px] rounded input-bg outline-none">
+                
+                <button onclick="saveBirthday()" class="w-full bg-black hover:bg-white hover:text-black border border-white text-white font-bold py-1 rounded text-[9px] transition-all">
+                    SAVE
+                </button>
+                <div id="error-msg" class="text-red-500 text-[8px] hidden">Username already saved!</div>
+            </div>
+
+            <h2 class="text-[8px] font-bold uppercase tracking-widest text-gray-400 mb-1 border-b border-gray-800 pb-0.5">
+                UPCOMING
+            </h2>
+        </div>
+        
+        <!-- Scrolling Section -->
+        <div id="birthday-list" class="space-y-0.5 overflow-y-auto pr-1 flex-grow">
+            <!-- Items injected here -->
+        </div>
+    </div>
+
+    <script>
+        let birthdays = JSON.parse(localStorage.getItem('birthdays') || '[]');
+
+        const daySelect = document.getElementById('day');
+        for(let i=1; i<=31; i++) {
+            const opt = document.createElement('option');
+            opt.value = i; opt.textContent = i;
+            daySelect.appendChild(opt);
+        }
+
+        async function saveBirthday() {
+            const usernameInput = document.getElementById('username');
+            const noteInput = document.getElementById('note');
+            const username = usernameInput.value.trim();
+            const month = document.getElementById('month').value;
+            const day = document.getElementById('day').value;
+            const note = noteInput.value.trim();
+            const errorDiv = document.getElementById('error-msg');
+
+            if(!username) return;
+
+            const isDuplicate = birthdays.some(b => b.username.toLowerCase() === username.toLowerCase());
+            if(isDuplicate) {
+                errorDiv.classList.remove('hidden');
+                return;
+            } else {
+                errorDiv.classList.add('hidden');
+            }
+
+            let avatar = 'https://placehold.co/40x40/000000/white?text=?';
+            try {
+                const res = await fetch(`https://api.chess.com/pub/player/${username.toLowerCase()}`);
+                const data = await res.json();
+                if(data.avatar) avatar = data.avatar;
+            } catch(e) { console.error("Avatar fetch failed"); }
+
+            birthdays.push({ username, month, day, note, avatar });
+            localStorage.setItem('birthdays', JSON.stringify(birthdays));
+            
+            usernameInput.value = '';
+            noteInput.value = '';
+            renderList();
+        }
+
+        function calculateDaysUntil(month, day) {
+            const now = new Date();
+            const bday = new Date(now.getFullYear(), month, day);
+            if (bday < now) bday.setFullYear(now.getFullYear() + 1);
+            return Math.ceil((bday - now) / (1000 * 60 * 60 * 24));
+        }
+
+        function renderList() {
+            const container = document.getElementById('birthday-list');
+            container.innerHTML = '';
+            
+            const sorted = [...birthdays].sort((a,b) => 
+                calculateDaysUntil(a.month, a.day) - calculateDaysUntil(b.month, b.day)
+            );
+
+            sorted.forEach(b => {
+                const days = calculateDaysUntil(b.month, b.day);
+                const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                
+                const div = document.createElement('div');
+                div.className = "flex items-center p-1 rounded hover:bg-gray-900 transition-all cursor-pointer";
+                div.innerHTML = `
+                    <img src="${b.avatar}" class="w-6 h-6 rounded-full mr-2 border border-gray-600">
+                    <div class="overflow-hidden">
+                        <div class="text-[9px] font-bold text-white truncate">${b.username}</div>
+                        <div class="text-[7px] text-gray-500">${monthNames[b.month]} ${b.day} • ${days} days ${b.note ? '• ' + b.note : ''}</div>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        renderList();
+    </script>
+</body>
+</html>
